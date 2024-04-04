@@ -139,6 +139,7 @@ class Point : public Color, public spaceTime
         x = x + vel.x*time + (1/2.0)*acc.x*time*time;
         y = y + vel.y*time + (1/2.0)*acc.y*time*time;
         z = z + vel.z*time + (1/2.0)*acc.z*time*time;
+        t = currTime;
     }
 
     void printPt()
@@ -151,7 +152,19 @@ class Point : public Color, public spaceTime
 };
 
 
+void box(SDL_Renderer* renderer,int screenWidth,int screenLength)
+{
+    SDL_SetRenderDrawColor(renderer,255,255,255,255);
+    SDL_Rect outer{0,0,screenWidth,screenLength};
+    SDL_RenderFillRect(renderer, &outer);
 
+    SDL_SetRenderDrawColor(renderer,0,0,0,255);
+    SDL_Rect inner{20,20,screenWidth-20,screenLength-20};
+    SDL_RenderFillRect(renderer, &inner);
+
+    return ;
+
+}
 
 
 
@@ -185,8 +198,12 @@ int main(int argc, char* argv[])
     //SDL_RenderSetScale(renderer,4,4);
 
 
+    //Envirnoment
     vector<Point*> allPoints;
-    int timeScale = 1000;
+    int timeScale = 100;
+
+    box(renderer,screenWidth,screenLength);
+
 
     //main looping
         while(running)
@@ -195,6 +212,7 @@ int main(int argc, char* argv[])
             //Event handling //interaction
                 while(SDL_PollEvent(&e))
                 {
+                    int last_x,last_y;
                     int mouse_x,mouse_y;
                     SDL_GetMouseState(&mouse_x,&mouse_y);
                     //close button implemented
@@ -227,19 +245,22 @@ int main(int argc, char* argv[])
                             }
                         }
                     //Mouse Interaction
-                        // else if(e.type == SDL_MOUSEMOTION)
-                        // {   
-                        //     int x,y;
-                        //     SDL_GetMouseState(&x,&y);
-                        //     cout << "Mouse Pointer" << x << " " << y << endl;
-                        // }
-
+                        else if(e.type == SDL_MOUSEBUTTONDOWN)
+                        {   
+                            switch(e.button.button)
+                            {
+                                case SDL_BUTTON_LEFT:
+                                    SDL_GetMouseState(&last_x,&last_y);
+                                    break;
+                            }
+                        }
                         else if(e.type == SDL_MOUSEBUTTONUP)
                         {
                             switch(e.button.button)
                             {
                                 case SDL_BUTTON_LEFT:
-                                Point* p = new Point(spaceTime(mouse_x,mouse_y,0,SDL_GetTicks64()/timeScale),10,Color(244,244,244,244));
+                                Point* p = new Point(spaceTime(last_x,last_y,0,SDL_GetTicks64()/timeScale),10,Color(244,244,244,244));
+                                p->vel = {mouse_x-last_x,mouse_y - last_y,0};
                                 allPoints.push_back(p);
                                 break;   
                             }
@@ -258,8 +279,9 @@ int main(int argc, char* argv[])
             {
                 x->update_pos(SDL_GetTicks64()/timeScale);
             }
-                SDL_RenderPresent(renderer);
-                SDL_Delay(10);    
+            box(renderer,screenWidth,screenLength);
+            \
+            SDL_RenderPresent(renderer);
         }
 
 
