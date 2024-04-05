@@ -5,6 +5,8 @@
 using namespace std;
 // #include "object.cpp"
 
+#define grey Color{150,150,150,255}
+
 class Color
 {
     public:
@@ -28,7 +30,7 @@ class Color
     {
         if(r > 255 || g > 255 || b > 255 || alpha > 255)
         {
-            cout << "Error. rgb cannot be greater than 255\n" << endl;
+           // cout << "Error. rgb cannot be greater than 255\n" << endl;
         }
         r = rx;
         g = gx;
@@ -152,14 +154,15 @@ class Point : public Color, public spaceTime
 };
 
 
-void box(SDL_Renderer* renderer,int screenWidth,int screenLength)
+void box(SDL_Renderer* renderer,int screenWidth,int screenLength,int width)
 {
-    SDL_SetRenderDrawColor(renderer,255,255,255,255);
+    Color boxBoundary {grey};
+    SDL_SetRenderDrawColor(renderer,boxBoundary.r,boxBoundary.g,boxBoundary.b,boxBoundary.alpha);
     SDL_Rect outer{0,0,screenWidth,screenLength};
     SDL_RenderFillRect(renderer, &outer);
 
     SDL_SetRenderDrawColor(renderer,0,0,0,255);
-    SDL_Rect inner{20,20,screenWidth-20,screenLength-20};
+    SDL_Rect inner{width,width,screenWidth-(2*width),screenLength-(2*width)};
     SDL_RenderFillRect(renderer, &inner);
 
     return ;
@@ -192,7 +195,7 @@ int main(int argc, char* argv[])
         int screenLength = (int)  screenWidth*(9.0/16.0);
         //Window Pos, size, showORnot
         window = SDL_CreateWindow("Physics Engine",SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, screenWidth, screenLength,SDL_WINDOW_SHOWN);
-        renderer = SDL_CreateRenderer(window,-1,0);
+        renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
         
         
     //SDL_RenderSetScale(renderer,4,4);
@@ -201,9 +204,7 @@ int main(int argc, char* argv[])
     //Envirnoment
     vector<Point*> allPoints;
     int timeScale = 100;
-
-    box(renderer,screenWidth,screenLength);
-
+    int boxWidth = 20;
 
     //main looping
         while(running)
@@ -270,18 +271,47 @@ int main(int argc, char* argv[])
                 SDL_SetRenderDrawColor(renderer,0,0,0,0);
                 SDL_RenderClear(renderer);
 
+            box(renderer,screenWidth,screenLength,boxWidth);
             for(Point* x : allPoints)
             {
                 SDL_SetRenderDrawColor(renderer,x->r, x->g, x->b, x->alpha);
                 SDL_RenderDrawPoint(renderer,x->x,x->y);
             }
+
+            //Pos 
             for(Point* x: allPoints)
             {
                 x->update_pos(SDL_GetTicks64()/timeScale);
             }
-            box(renderer,screenWidth,screenLength);
-            \
+            //Box interaction
+            for(Point* x: allPoints)
+            {
+                if(x->x >= screenWidth - boxWidth)
+                {
+                    x->x = (screenWidth - boxWidth) - (x->x - (screenWidth - boxWidth));
+                    x->vel.x = -(x->vel.x);
+                }
+                else if(x->x <= 0 + boxWidth)
+                {
+                    x->x = boxWidth - (x->x - boxWidth);
+                    x->vel.x = -(x->vel.x);
+                }
+
+                if(x->y >= screenLength - boxWidth)
+                {
+                    x->y = (screenLength - boxWidth) - (x->y - (screenLength - boxWidth));
+                    x->vel.y = -(x->vel.y);
+                }
+                else if(x->y <= 0 + boxWidth)
+                {
+                    x->y = boxWidth - (x->y - boxWidth);
+                    x->vel.y = -(x->vel.y);
+                }
+            }
+
             SDL_RenderPresent(renderer);
+
+            
         }
 
 
