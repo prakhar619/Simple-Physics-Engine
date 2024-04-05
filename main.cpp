@@ -87,6 +87,7 @@ class spaceTime
         z = cpyObj.z;
         t = cpyObj.t;        
     }
+
 };
 class axis
 {
@@ -125,7 +126,7 @@ class Point : public Color, public spaceTime
     double p_mass;
 
     axis force;
-    axis vel {10,0,0};
+    axis vel {0,0,0};
     axis acc {0,0,0};
 
     Point(spaceTime point, double mass, Color p_Color)
@@ -136,38 +137,6 @@ class Point : public Color, public spaceTime
 
     }
 
-    void update_vel(int currTime)
-    {
-        int time = currTime - t;
-        vel.x = vel.x + acc.x*time;
-        vel.y = vel.y + acc.y*time;
-        vel.z = vel.z + acc.z*time;
-    }
-
-    void update_acc(axis force1)
-    {
-        force.update_axis(force1);
-        acc.x = force.x/p_mass;
-        acc.y = force.y/p_mass;
-        acc.z = force.z/p_mass;
-    }
-
-    void update_pos(int currTime)
-    {
-        int time = currTime - t;
-        x = x + vel.x*time + (1/2.0)*acc.x*time*time;
-        y = y + vel.y*time + (1/2.0)*acc.y*time*time;
-        z = z + vel.z*time + (1/2.0)*acc.z*time*time;
-        t = currTime;
-    }
-
-    void update_all(int currTime,axis force1)
-    {
-        update_acc(force1);
-        update_vel(currTime);
-        update_pos(currTime);
-    }
-
     void printPt()
     {
         cout << "Pos:" << x << " " << y << " " << z << endl;
@@ -175,8 +144,127 @@ class Point : public Color, public spaceTime
         cout << "Color:" << r << " " << g << " " << b << endl; 
     }
 
+    int compare(Point* pt)
+    {
+        if(x == pt->x && y == pt->y && z == pt->z)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
 };
 
+class Physics
+{
+    public:
+    int initialised = 0;
+
+    int box_xW,box_yW,boxWidth;
+
+    int timeScale;
+    int flg_envForce = 0;
+    axis envForce {0,0,0};
+
+    void init(int timeScale,int box_xW,int box_yW,int boxWidth)
+    {
+        this->timeScale = timeScale;
+        this->box_xW = box_xW;
+        this->box_yW = box_yW;
+        this->boxWidth = boxWidth;
+        initialised = 1;
+    }
+
+    void toogleGForce()
+    {
+        if(flg_envForce == 0)
+        envForce.update_axis(0,10,0);
+        else
+        envForce.update_axis(0,0,0);
+    }
+    void update_vel(Point* pt1,int currTime)
+    {
+        int time = currTime - pt1->t;
+        pt1->vel.x = pt1->vel.x + pt1->acc.x*time;
+        pt1->vel.y = pt1->vel.y + pt1->acc.y*time;
+        pt1->vel.z = pt1->vel.z + pt1->acc.z*time;
+    }
+
+    void update_acc(Point* pt1,axis force1)
+    {
+        pt1->force.update_axis(force1);
+        pt1->acc.x = pt1->force.x/pt1->p_mass;
+        pt1->acc.y = pt1->force.y/pt1->p_mass;
+        pt1->acc.z = pt1->force.z/pt1->p_mass;
+    }
+
+    void update_pos(Point* pt1,int currTime)
+    {
+        int time = currTime - pt1->t;
+        pt1->x = pt1->x + pt1->vel.x*time + (1/2.0)*pt1->acc.x*time*time;
+        pt1->y = pt1->y + pt1->vel.y*time + (1/2.0)*pt1->acc.y*time*time;
+        pt1->z = pt1->z + pt1->vel.z*time + (1/2.0)*pt1->acc.z*time*time;
+        pt1->t = currTime;
+    }
+
+    void update_motion(Point* pt1,int currTime,axis force1)
+    {
+        update_acc(pt1,force1);
+        update_vel(pt1,currTime);
+        update_pos(pt1,currTime);
+    }
+
+    void wallCollision(Point* x,int box_xWidth,int box_yWidth,int boxWidth)
+    {
+            if(x->x >= box_xWidth - boxWidth)
+            {
+                x->x = (box_xWidth - boxWidth) - (x->x - (box_xWidth - boxWidth));
+                x->vel.x = -(x->vel.x);
+            }
+            else if(x->x <= 0 + boxWidth)
+            {
+                x->x = boxWidth - (x->x - boxWidth);
+                x->vel.x = -(x->vel.x);
+            }
+
+            if(x->y >= box_yWidth - boxWidth)
+            {
+                x->y = (box_yWidth- boxWidth) - (x->y - (box_yWidth - boxWidth));
+                x->vel.y = -(x->vel.y);
+            }
+            else if(x->y <= 0 + boxWidth)
+            {
+                x->y = boxWidth - (x->y - boxWidth);
+                x->vel.y = -(x->vel.y);
+            }
+    }
+    
+    void collisionHandler(Point* pt1, Point* pt2)
+    {
+        cout << "OLD VEL P1:" << pt1->vel.x << endl;
+        cout << "OLD VEL P2:" << pt2->vel.x << endl;
+        //v1_ = ((m1 - m2)v1 + 2m2v2)/m1+m2
+        double v1_ = ((pt1->p_mass - pt2->p_mass)*pt1->vel.x + 2*pt2->p_mass*pt2->vel.x)/(pt1->p_mass + pt2->p_mass);
+        //v2_ = (m1*v1 + m2*v2 - m1*v1_ )/m2
+        pt2->vel.x = (pt1->p_mass*(pt1->vel.x - v1_) + pt2->p_mass*pt2->vel.x ) / pt2->p_mass;         
+        pt1->vel.x = v1_;
+        cout << "NEW VEL P1:" << pt1->vel.x << endl;
+        cout << "NEW VEL P2:" << pt2->vel.x << endl;
+
+    }
+
+    void Update(vector<Point*> allPts,long long tick)
+    {
+        for(Point* x: allPts)
+        {
+                update_motion(x,tick/timeScale,envForce);
+                wallCollision(x,box_xW,box_yW,boxWidth);
+        }
+    }
+};
 
 void box(SDL_Renderer* renderer,int screenWidth,int screenLength,Color boxColor,int width)
 {
@@ -190,9 +278,7 @@ void box(SDL_Renderer* renderer,int screenWidth,int screenLength,Color boxColor,
     SDL_RenderFillRect(renderer, &inner);
 
     return ;
-
 }
-
 
 
 int main(int argc, char* argv[])
@@ -221,19 +307,27 @@ int main(int argc, char* argv[])
         window = SDL_CreateWindow("Physics Engine",SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, screenWidth, screenLength,SDL_WINDOW_SHOWN);
         renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
         
-    //SDL_RenderSetLogicalSize(renderer,50,50);
-    //SDL_RenderSetScale(renderer,2,2);
 
 
     //Envirnoment
-        vector<Point*> allPoints;
+        int logicalScale = 5;
         int timeScale = 100;
-        int boxWidth = 20;
+
+        vector<Point*> allPoints;
+        int boxWidth = 20/logicalScale;
         Color pColor(WHITE);
         Color currBoxColor(CELERIAN_BLUE);
 
-        axis envForce(EMPTY);
-        int gforce = 0;
+
+        int box_xWidth = screenWidth/logicalScale;
+        int box_yWidth = screenLength/logicalScale;
+
+        Physics phy;
+        phy.init(timeScale,box_xWidth,box_yWidth,boxWidth);
+    //Scaling 
+        //SDL_RenderSetLogicalSize(renderer,screenWidth/2,screenLength/2);
+        SDL_RenderSetScale(renderer,logicalScale,logicalScale);
+
     //main looping
         while(running)
         {
@@ -282,16 +376,7 @@ int main(int argc, char* argv[])
                                     pColor.updateColor(WHITE);
                                     break;
                                 case SDLK_f:
-                                    if(gforce == 0)
-                                    {
-                                        envForce.update_axis(GFORCE);
-                                        gforce = 1;
-                                    }
-                                    else
-                                    {
-                                        envForce.update_axis(EMPTY);
-                                        gforce = 0;
-                                    }
+                                    phy.toogleGForce();
                                     break;
 
                             }
@@ -303,6 +388,8 @@ int main(int argc, char* argv[])
                             {
                                 case SDL_BUTTON_LEFT:
                                     SDL_GetMouseState(&last_x,&last_y);
+                                    last_x /= logicalScale;
+                                    last_y /= logicalScale;
                                     break;
                             }
                         }
@@ -310,10 +397,12 @@ int main(int argc, char* argv[])
                         {
                             int mouse_x,mouse_y;
                             SDL_GetMouseState(&mouse_x,&mouse_y);
+                            mouse_x /= logicalScale;
+                            mouse_y /= logicalScale;
                             switch(e.button.button)
                             {
                                 case SDL_BUTTON_LEFT:
-                                Point* p = new Point(spaceTime(last_x,last_y,0,SDL_GetTicks64()/timeScale),10,pColor);
+                                Point* p = new Point(spaceTime(last_x,last_y,0,SDL_GetTicks64()/phy.timeScale),10,pColor);
                                 p->vel = {mouse_x-last_x,mouse_y - last_y,0};
                                 allPoints.push_back(p);
                                 break;   
@@ -325,45 +414,18 @@ int main(int argc, char* argv[])
             SDL_SetRenderDrawColor(renderer,0,0,0,0);
             SDL_RenderClear(renderer);
 
-            box(renderer,screenWidth,screenLength,currBoxColor,boxWidth);
+            box(renderer,box_xWidth,box_yWidth,currBoxColor,boxWidth);
             for(Point* x : allPoints)
             {
                 SDL_SetRenderDrawColor(renderer,x->r, x->g, x->b, x->alpha);
                 SDL_RenderDrawPoint(renderer,x->x,x->y);
             }
 
-            //Pos 
-            for(Point* x: allPoints)
-            {
-                x->update_all(SDL_GetTicks64()/timeScale,envForce);
-
-            }
+            //Physics 
+            phy.Update(allPoints,SDL_GetTicks64());
         
             //Box interaction
-            for(Point* x: allPoints)
-            {
-                if(x->x >= screenWidth - boxWidth)
-                {
-                    x->x = (screenWidth - boxWidth) - (x->x - (screenWidth - boxWidth));
-                    x->vel.x = -(x->vel.x);
-                }
-                else if(x->x <= 0 + boxWidth)
-                {
-                    x->x = boxWidth - (x->x - boxWidth);
-                    x->vel.x = -(x->vel.x);
-                }
 
-                if(x->y >= screenLength - boxWidth)
-                {
-                    x->y = (screenLength - boxWidth) - (x->y - (screenLength - boxWidth));
-                    x->vel.y = -(x->vel.y);
-                }
-                else if(x->y <= 0 + boxWidth)
-                {
-                    x->y = boxWidth - (x->y - boxWidth);
-                    x->vel.y = -(x->vel.y);
-                }
-            }
 
             SDL_RenderPresent(renderer);
 
