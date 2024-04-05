@@ -5,8 +5,16 @@
 using namespace std;
 // #include "object.cpp"
 
-#define grey Color{150,150,150,255}
+#define GREY Color{150,150,150,255}
+#define RED Color{255,0,0,255}
+#define GREEN Color{0,255,0,255}
+#define BLUE Color{0,0,255,255}
+#define WHITE Color{255,255,255,255}
+#define BLACK Color{0,0,0,255}
+#define CELERIAN_BLUE Color{40,40,40,255}
 
+#define GFORCE axis{0,10,0}
+#define EMPTY axis{0,0,0}
 class Color
 {
     public:
@@ -22,7 +30,7 @@ class Color
     }
     Color(Color &Obj)
     {
-        updateColor(Obj);
+        updateColor(Obj.r,Obj.g,Obj.b,Obj.alpha);
     }
 
 
@@ -38,7 +46,7 @@ class Color
         alpha = alphax;
 
     }
-    void updateColor(Color &cpyObj)
+    void updateColor(Color cpyObj)
     {
         r = cpyObj.r;
         g = cpyObj.g;
@@ -62,7 +70,7 @@ class spaceTime
     }
     spaceTime(spaceTime& Obj)
     {
-        update_spaceTime(Obj);
+        update_spaceTime(Obj.x,Obj.y,Obj.z,Obj.t);
     }
 
     void update_spaceTime(int x,int y,int z,int t)
@@ -72,7 +80,7 @@ class spaceTime
         this->z = z;
         this->t = t;
     }
-    void update_spaceTime(spaceTime &cpyObj)
+    void update_spaceTime(spaceTime cpyObj)
     {
         x = cpyObj.x;
         y = cpyObj.y;
@@ -92,15 +100,23 @@ class axis
     }
     axis(int x, int y, int z)
     {
-        this->x = x;
-        this->y = y;
-        this->z = z;
+        update_axis(x,y,z);
     }
-    void update_axis(axis &a)
+    axis(axis &Obj)
+    {
+        update_axis(Obj.x,Obj.y,Obj.z);
+    }
+    void update_axis(axis a)
     {
         x= a.x;
         y= a.y;
         z= a.z;
+    }
+    void update_axis(int x, int y, int z)
+    {
+        this->x = x;
+        this->y = y;
+        this->z = z;
     }
 };
 class Point : public Color, public spaceTime
@@ -120,8 +136,9 @@ class Point : public Color, public spaceTime
 
     }
 
-    void update_vel(int time)
+    void update_vel(int currTime)
     {
+        int time = currTime - t;
         vel.x = vel.x + acc.x*time;
         vel.y = vel.y + acc.y*time;
         vel.z = vel.z + acc.z*time;
@@ -144,6 +161,13 @@ class Point : public Color, public spaceTime
         t = currTime;
     }
 
+    void update_all(int currTime,axis force1)
+    {
+        update_acc(force1);
+        update_vel(currTime);
+        update_pos(currTime);
+    }
+
     void printPt()
     {
         cout << "Pos:" << x << " " << y << " " << z << endl;
@@ -154,14 +178,14 @@ class Point : public Color, public spaceTime
 };
 
 
-void box(SDL_Renderer* renderer,int screenWidth,int screenLength,int width)
+void box(SDL_Renderer* renderer,int screenWidth,int screenLength,Color boxColor,int width)
 {
-    Color boxBoundary {grey};
+    Color boxBoundary {GREY};
     SDL_SetRenderDrawColor(renderer,boxBoundary.r,boxBoundary.g,boxBoundary.b,boxBoundary.alpha);
     SDL_Rect outer{0,0,screenWidth,screenLength};
     SDL_RenderFillRect(renderer, &outer);
 
-    SDL_SetRenderDrawColor(renderer,0,0,0,255);
+    SDL_SetRenderDrawColor(renderer,boxColor.r,boxColor.g,boxColor.b,boxColor.alpha);
     SDL_Rect inner{width,width,screenWidth-(2*width),screenLength-(2*width)};
     SDL_RenderFillRect(renderer, &inner);
 
@@ -197,15 +221,19 @@ int main(int argc, char* argv[])
         window = SDL_CreateWindow("Physics Engine",SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, screenWidth, screenLength,SDL_WINDOW_SHOWN);
         renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
         
-        
-    //SDL_RenderSetScale(renderer,4,4);
+    //SDL_RenderSetLogicalSize(renderer,50,50);
+    //SDL_RenderSetScale(renderer,2,2);
 
 
     //Envirnoment
-    vector<Point*> allPoints;
-    int timeScale = 100;
-    int boxWidth = 20;
+        vector<Point*> allPoints;
+        int timeScale = 100;
+        int boxWidth = 20;
+        Color pColor(WHITE);
+        Color currBoxColor(CELERIAN_BLUE);
 
+        axis envForce(EMPTY);
+        int gforce = 0;
     //main looping
         while(running)
         {
@@ -214,8 +242,7 @@ int main(int argc, char* argv[])
                 while(SDL_PollEvent(&e))
                 {
                     int last_x,last_y;
-                    int mouse_x,mouse_y;
-                    SDL_GetMouseState(&mouse_x,&mouse_y);
+
                     //close button implemented
                         if(e.type == SDL_QUIT)
                         {
@@ -231,8 +258,14 @@ int main(int argc, char* argv[])
                         {
                             switch(e.key.keysym.sym)
                             {
-                                case SDLK_RIGHT:
-                                    cout << "Right KEY was pressed" << endl;
+                                case SDLK_r:
+                                    pColor.updateColor(RED);
+                                    break;
+                                case SDLK_g:
+                                    pColor.updateColor(GREEN);
+                                    break;
+                                case SDLK_b:
+                                    pColor.updateColor(BLUE);
                                     break;
                             }
                         }
@@ -243,6 +276,24 @@ int main(int argc, char* argv[])
                                 case SDLK_RIGHT:
                                     cout <<"Right KEY was released" << endl;
                                     break;
+                                case SDLK_r:
+                                case SDLK_g:
+                                case SDLK_b:
+                                    pColor.updateColor(WHITE);
+                                    break;
+                                case SDLK_f:
+                                    if(gforce == 0)
+                                    {
+                                        envForce.update_axis(GFORCE);
+                                        gforce = 1;
+                                    }
+                                    else
+                                    {
+                                        envForce.update_axis(EMPTY);
+                                        gforce = 0;
+                                    }
+                                    break;
+
                             }
                         }
                     //Mouse Interaction
@@ -257,10 +308,12 @@ int main(int argc, char* argv[])
                         }
                         else if(e.type == SDL_MOUSEBUTTONUP)
                         {
+                            int mouse_x,mouse_y;
+                            SDL_GetMouseState(&mouse_x,&mouse_y);
                             switch(e.button.button)
                             {
                                 case SDL_BUTTON_LEFT:
-                                Point* p = new Point(spaceTime(last_x,last_y,0,SDL_GetTicks64()/timeScale),10,Color(244,244,244,244));
+                                Point* p = new Point(spaceTime(last_x,last_y,0,SDL_GetTicks64()/timeScale),10,pColor);
                                 p->vel = {mouse_x-last_x,mouse_y - last_y,0};
                                 allPoints.push_back(p);
                                 break;   
@@ -268,10 +321,11 @@ int main(int argc, char* argv[])
                         }
 
             }
-                SDL_SetRenderDrawColor(renderer,0,0,0,0);
-                SDL_RenderClear(renderer);
+            
+            SDL_SetRenderDrawColor(renderer,0,0,0,0);
+            SDL_RenderClear(renderer);
 
-            box(renderer,screenWidth,screenLength,boxWidth);
+            box(renderer,screenWidth,screenLength,currBoxColor,boxWidth);
             for(Point* x : allPoints)
             {
                 SDL_SetRenderDrawColor(renderer,x->r, x->g, x->b, x->alpha);
@@ -281,8 +335,10 @@ int main(int argc, char* argv[])
             //Pos 
             for(Point* x: allPoints)
             {
-                x->update_pos(SDL_GetTicks64()/timeScale);
+                x->update_all(SDL_GetTicks64()/timeScale,envForce);
+
             }
+        
             //Box interaction
             for(Point* x: allPoints)
             {
