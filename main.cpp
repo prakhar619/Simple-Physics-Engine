@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include <string>
+#include <cmath>
 using namespace std;
 // #include "object.cpp"
 
@@ -186,15 +186,21 @@ class Physics
         this->box_yW = box_yW;
         this->boxWidth = boxWidth;
         initialised = 1;
-        this->collisionDelta = 5;
+        this->collisionDelta = 3;
     }
 
     void toogleGForce()
     {
         if(flg_envForce == 0)
-        envForce.update_axis(0,10,0);
+        {
+            envForce.update_axis(0,10,0);
+            flg_envForce = 1;
+        }
         else
-        envForce.update_axis(0,0,0);
+        {
+            envForce.update_axis(0,0,0);
+            flg_envForce = 0;
+        }
     }
     void update_vel(Point* pt1,int currTime)
     {
@@ -281,19 +287,19 @@ class Physics
                         pair<Point*,Point*> p1{allPts[i],allPts[j]};
                         if(collisionTime[p1] == 0)
                         {
-                            cout << "1st Collision Detected:" << tick/timeScale << endl;
+                            //cout << "1st Collision Detected:" << tick/timeScale << endl;
                             collisionHandler(allPts[i],allPts[j]);
                             collisionTime[p1] = tick/timeScale;                            
                         }
                         else if(collisionTime[p1] + collisionDelta < tick/timeScale )
                         {
-                            cout << "Collision Detected:" << tick/timeScale << endl;
+                            //cout << "Collision Detected:" << tick/timeScale << endl;
                             collisionHandler(allPts[i],allPts[j]);
                             collisionTime[p1] = tick/timeScale;
                         }
                         else
                         {
-                            cout << "Collision Factor:" <<collisionTime[p1] << " " << collisionDelta << " " << tick/timeScale << endl;
+                            //cout << "Collision Factor:" <<collisionTime[p1] << " " << collisionDelta << " " << tick/timeScale << endl;
                         }
                     }
                 }          
@@ -347,6 +353,7 @@ int main(int argc, char* argv[])
     //Envirnoment
         int logicalScale = 5;
         int timeScale = 100;
+        double speedScale = 1;
 
         vector<Point*> allPoints;
         int boxWidth = 20/logicalScale;
@@ -359,13 +366,21 @@ int main(int argc, char* argv[])
 
         Physics phy;
         phy.init(timeScale,box_xWidth,box_yWidth,boxWidth);
+
+
     //Scaling 
         //SDL_RenderSetLogicalSize(renderer,screenWidth/2,screenLength/2);
         SDL_RenderSetScale(renderer,logicalScale,logicalScale);
 
+    //fps
+        long long fStart = 0;
+        long long fEnd = 0;
+        double fps = 0;
+        double fpsLimit = 144;
     //main looping
         while(running)
         {
+            fStart = SDL_GetTicks64();
 
             //Event handling //interaction
                 while(SDL_PollEvent(&e))
@@ -438,37 +453,36 @@ int main(int argc, char* argv[])
                             {
                                 case SDL_BUTTON_LEFT:
                                 Point* p = new Point(allPoints.size(),spaceTime(last_x,last_y,0,SDL_GetTicks64()/phy.timeScale),10,pColor);
-                                p->vel = {mouse_x-last_x,mouse_y - last_y,0};
+                                p->vel.update_axis(speedScale*(mouse_x-last_x),speedScale*(mouse_y - last_y),0);
                                 allPoints.push_back(p);
                                 break;   
                             }
                         }
 
             }
-            
-            SDL_SetRenderDrawColor(renderer,0,0,0,0);
-            SDL_RenderClear(renderer);
-
-            box(renderer,box_xWidth,box_yWidth,currBoxColor,boxWidth);
-
-            phy.Update(allPoints,SDL_GetTicks64());
-
-            for(Point* x : allPoints)
-            {
-                SDL_SetRenderDrawColor(renderer,x->r, x->g, x->b, x->alpha);
-                SDL_RenderDrawPoint(renderer,x->x,x->y);
-            }
 
             //Physics 
-        
-            //Box interaction
-            SDL_RenderPresent(renderer);
-
+                phy.Update(allPoints,SDL_GetTicks64());
             
+            //Render/Draw
+                SDL_SetRenderDrawColor(renderer,0,0,0,0);
+                SDL_RenderClear(renderer);
+                box(renderer,box_xWidth,box_yWidth,currBoxColor,boxWidth);
+                for(Point* x : allPoints)
+                {
+                    SDL_SetRenderDrawColor(renderer,x->r, x->g, x->b, x->alpha);
+                    SDL_RenderDrawPoint(renderer,x->x,x->y);
+                }
+
+            //SDL_GetTicks64() gives ans in millisecond
+                fEnd = SDL_GetTicks64();
+                double timeElapsed = fEnd - fStart;
+            
+            if(floor(1000.0/fpsLimit - timeElapsed) >= 0)
+                SDL_Delay(ceil(1000.0/fpsLimit - timeElapsed));
+            //cout << "FPS:" << 1.0/((SDL_GetTicks64() - fStart) * 0.001) << endl;
+
+            SDL_RenderPresent(renderer);
         }
-
-
-
-
     return 0;
 }
