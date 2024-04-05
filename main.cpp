@@ -2,6 +2,8 @@
 #include <SDL.h>
 #include <iostream>
 #include <vector>
+#include <map>
+#include <string>
 using namespace std;
 // #include "object.cpp"
 
@@ -123,17 +125,19 @@ class axis
 class Point : public Color, public spaceTime
 {
     public:
+    int index;
     double p_mass;
 
     axis force;
     axis vel {0,0,0};
     axis acc {0,0,0};
 
-    Point(spaceTime point, double mass, Color p_Color)
+    Point(int index,spaceTime point, double mass, Color p_Color)
     {
         updateColor(p_Color);
         update_spaceTime(point);
         p_mass = mass;
+        this->index= index;
 
     }
 
@@ -158,16 +162,22 @@ class Point : public Color, public spaceTime
 
 };
 
+
+
 class Physics
 {
     public:
+
     int initialised = 0;
+    map<pair<Point*,Point*>,int> collisionTime;
 
     int box_xW,box_yW,boxWidth;
 
+    //physics env Variables
     int timeScale;
     int flg_envForce = 0;
     axis envForce {0,0,0};
+    int collisionDelta;
 
     void init(int timeScale,int box_xW,int box_yW,int boxWidth)
     {
@@ -176,6 +186,7 @@ class Physics
         this->box_yW = box_yW;
         this->boxWidth = boxWidth;
         initialised = 1;
+        this->collisionDelta = 5;
     }
 
     void toogleGForce()
@@ -244,24 +255,48 @@ class Physics
     
     void collisionHandler(Point* pt1, Point* pt2)
     {
-        cout << "OLD VEL P1:" << pt1->vel.x << endl;
-        cout << "OLD VEL P2:" << pt2->vel.x << endl;
         //v1_ = ((m1 - m2)v1 + 2m2v2)/m1+m2
-        double v1_ = ((pt1->p_mass - pt2->p_mass)*pt1->vel.x + 2*pt2->p_mass*pt2->vel.x)/(pt1->p_mass + pt2->p_mass);
         //v2_ = (m1*v1 + m2*v2 - m1*v1_ )/m2
-        pt2->vel.x = (pt1->p_mass*(pt1->vel.x - v1_) + pt2->p_mass*pt2->vel.x ) / pt2->p_mass;         
-        pt1->vel.x = v1_;
-        cout << "NEW VEL P1:" << pt1->vel.x << endl;
-        cout << "NEW VEL P2:" << pt2->vel.x << endl;
-
+        double v1_x = ((pt1->p_mass - pt2->p_mass)*pt1->vel.x + 2*pt2->p_mass*pt2->vel.x)/(pt1->p_mass + pt2->p_mass);
+        pt2->vel.x = (pt1->p_mass*(pt1->vel.x - v1_x) + pt2->p_mass*pt2->vel.x ) / pt2->p_mass;         
+        pt1->vel.x = v1_x;
+        double v1_y = ((pt1->p_mass - pt2->p_mass)*pt1->vel.y + 2*pt2->p_mass*pt2->vel.y)/(pt1->p_mass + pt2->p_mass);
+        pt2->vel.y = (pt1->p_mass*(pt1->vel.y - v1_y) + pt2->p_mass*pt2->vel.y ) / pt2->p_mass;         
+        pt1->vel.y = v1_y;
+        double v1_z = ((pt1->p_mass - pt2->p_mass)*pt1->vel.z + 2*pt2->p_mass*pt2->vel.z)/(pt1->p_mass + pt2->p_mass);
+        pt2->vel.z = (pt1->p_mass*(pt1->vel.z - v1_z) + pt2->p_mass*pt2->vel.z ) / pt2->p_mass;         
+        pt1->vel.z = v1_z;
     }
 
     void Update(vector<Point*> allPts,long long tick)
     {
-        for(Point* x: allPts)
+        for(int i = 0; i < allPts.size(); i++)
         {
-                update_motion(x,tick/timeScale,envForce);
-                wallCollision(x,box_xW,box_yW,boxWidth);
+                update_motion(allPts[i],tick/timeScale,envForce);
+                wallCollision(allPts[i],box_xW,box_yW,boxWidth);
+                for(int j = i+1; j < allPts.size(); j++)
+                {
+                    if(allPts[i]->compare(allPts[j]) == 1)
+                    {
+                        pair<Point*,Point*> p1{allPts[i],allPts[j]};
+                        if(collisionTime[p1] == 0)
+                        {
+                            cout << "1st Collision Detected:" << tick/timeScale << endl;
+                            collisionHandler(allPts[i],allPts[j]);
+                            collisionTime[p1] = tick/timeScale;                            
+                        }
+                        else if(collisionTime[p1] + collisionDelta < tick/timeScale )
+                        {
+                            cout << "Collision Detected:" << tick/timeScale << endl;
+                            collisionHandler(allPts[i],allPts[j]);
+                            collisionTime[p1] = tick/timeScale;
+                        }
+                        else
+                        {
+                            cout << "Collision Factor:" <<collisionTime[p1] << " " << collisionDelta << " " << tick/timeScale << endl;
+                        }
+                    }
+                }          
         }
     }
 };
@@ -402,7 +437,7 @@ int main(int argc, char* argv[])
                             switch(e.button.button)
                             {
                                 case SDL_BUTTON_LEFT:
-                                Point* p = new Point(spaceTime(last_x,last_y,0,SDL_GetTicks64()/phy.timeScale),10,pColor);
+                                Point* p = new Point(allPoints.size(),spaceTime(last_x,last_y,0,SDL_GetTicks64()/phy.timeScale),10,pColor);
                                 p->vel = {mouse_x-last_x,mouse_y - last_y,0};
                                 allPoints.push_back(p);
                                 break;   
@@ -415,6 +450,9 @@ int main(int argc, char* argv[])
             SDL_RenderClear(renderer);
 
             box(renderer,box_xWidth,box_yWidth,currBoxColor,boxWidth);
+
+            phy.Update(allPoints,SDL_GetTicks64());
+
             for(Point* x : allPoints)
             {
                 SDL_SetRenderDrawColor(renderer,x->r, x->g, x->b, x->alpha);
@@ -422,11 +460,8 @@ int main(int argc, char* argv[])
             }
 
             //Physics 
-            phy.Update(allPoints,SDL_GetTicks64());
         
             //Box interaction
-
-
             SDL_RenderPresent(renderer);
 
             

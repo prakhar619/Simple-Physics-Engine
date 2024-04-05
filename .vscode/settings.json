@@ -3,6 +3,7 @@
         "*.pro": "prolog",
         "iostream": "cpp",
         "vector": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "utility": "cpp"
     }
 }
