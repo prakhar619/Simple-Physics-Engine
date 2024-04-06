@@ -163,7 +163,6 @@ class Point : public Color, public spaceTime
 };
 
 
-
 class Physics
 {
     public:
@@ -306,6 +305,7 @@ class Physics
         }
     }
 };
+
 
 void box(SDL_Renderer* renderer,int screenWidth,int screenLength,Color boxColor,int width)
 {
