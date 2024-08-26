@@ -5,7 +5,14 @@
 #include <map>
 #include <cmath>
 using namespace std;
-// #include "object.cpp"
+//#include "object.cpp"
+
+//Support Files
+#include "axis.cpp"
+#include "color.cpp"
+#include "spacetime.cpp"
+#include "Point.cpp"
+//Support Files
 
 #define GREY Color{150,150,150,255}
 #define RED Color{255,0,0,255}
@@ -17,156 +24,10 @@ using namespace std;
 
 #define GFORCE axis{0,10,0}
 #define EMPTY axis{0,0,0}
-class Color
-{
-    public:
-    int r,g,b,alpha;
-    Color()
-    {
-        r = g= b = 0;
-        alpha = 1;
-    }
-    Color(int rx,int gx,int bx,int alphax)
-    {
-        updateColor(rx,gx,bx,alphax);
-    }
-    Color(Color &Obj)
-    {
-        updateColor(Obj.r,Obj.g,Obj.b,Obj.alpha);
-    }
-
-
-    void updateColor(int rx,int gx,int bx,int alphax)
-    {
-        if(r > 255 || g > 255 || b > 255 || alpha > 255)
-        {
-           // cout << "Error. rgb cannot be greater than 255\n" << endl;
-        }
-        r = rx;
-        g = gx;
-        b = bx;
-        alpha = alphax;
-
-    }
-    void updateColor(Color cpyObj)
-    {
-        r = cpyObj.r;
-        g = cpyObj.g;
-        b = cpyObj.b;
-        alpha = cpyObj.alpha;
-    }
-};
-class spaceTime
-{
-    public:
-    int x,y,z;
-    long t;
-
-    spaceTime()
-    {
-        x = y = z = t = 0;
-    }
-    spaceTime(int x,int y,int z,int t)
-    {   
-        update_spaceTime(x,y,z,t);
-    }
-    spaceTime(spaceTime& Obj)
-    {
-        update_spaceTime(Obj.x,Obj.y,Obj.z,Obj.t);
-    }
-
-    void update_spaceTime(int x,int y,int z,int t)
-    {
-        this->x = x;
-        this->y = y;
-        this->z = z;
-        this->t = t;
-    }
-    void update_spaceTime(spaceTime cpyObj)
-    {
-        x = cpyObj.x;
-        y = cpyObj.y;
-        z = cpyObj.z;
-        t = cpyObj.t;        
-    }
-
-};
-class axis
-{
-    public:
-    double x,y,z;
-    axis()
-    {
-        x = 0;
-        y = 0;
-        z= 0;
-    }
-    axis(int x, int y, int z)
-    {
-        update_axis(x,y,z);
-    }
-    axis(axis &Obj)
-    {
-        update_axis(Obj.x,Obj.y,Obj.z);
-    }
-    void update_axis(axis a)
-    {
-        x= a.x;
-        y= a.y;
-        z= a.z;
-    }
-    void update_axis(int x, int y, int z)
-    {
-        this->x = x;
-        this->y = y;
-        this->z = z;
-    }
-};
-class Point : public Color, public spaceTime
-{
-    public:
-    int index;
-    double p_mass;
-
-    axis force;
-    axis vel {0,0,0};
-    axis acc {0,0,0};
-
-    Point(int index,spaceTime point, double mass, Color p_Color)
-    {
-        updateColor(p_Color);
-        update_spaceTime(point);
-        p_mass = mass;
-        this->index= index;
-
-    }
-
-    void printPt()
-    {
-        cout << "Pos:" << x << " " << y << " " << z << endl;
-        cout << "Mass:" << p_mass << endl;
-        cout << "Color:" << r << " " << g << " " << b << endl; 
-    }
-
-    int compare(Point* pt)
-    {
-        if(x == pt->x && y == pt->y && z == pt->z)
-        {
-            return 1;
-        }
-        else
-        {
-            return 0;
-        }
-    }
-
-};
-
 
 class Physics
 {
     public:
-
     int initialised = 0;
     map<pair<Point*,Point*>,int> collisionTime;
 
@@ -320,7 +181,6 @@ void box(SDL_Renderer* renderer,int screenWidth,int screenLength,Color boxColor,
 
     return ;
 }
-
 
 int main(int argc, char* argv[])
 {
